@@ -1,0 +1,80 @@
+[
+  {
+    "id": "demo-safe",
+    "shortLabel": "DEMO 1 - SAFE ROUTE",
+    "name": "Valley Green Corridor Survey",
+    "description": "Passes exclusively through GREEN demo zones (GZ-01, GZ-02, GZ-03) at a compliant 60 m altitude.",
+    "expectedVerdict": "APPROVED",
+    "plannedAltitudeMeters": 60,
+    "droneModel": "Tenorix Scout X4",
+    "flightSpeedMps": 12,
+    "permissionGranted": false,
+    "coordinates": [
+      [-121.640, 36.825],
+      [-121.612, 36.825],
+      [-121.560, 36.828]
+    ]
+  },
+  {
+    "id": "demo-conditional",
+    "shortLabel": "DEMO 2 - CONDITIONAL ROUTE",
+    "name": "Cedar Ridge Caution Inspection",
+    "description": "Crosses YELLOW demo zone YZ-01 where demo operator permission is required before flight.",
+    "expectedVerdict": "CONDITIONAL",
+    "plannedAltitudeMeters": 55,
+    "droneModel": "AeroInspect M2",
+    "flightSpeedMps": 10,
+    "permissionGranted": false,
+    "coordinates": [
+      [-121.648, 36.850],
+      [-121.625, 36.856],
+      [-121.608, 36.864]
+    ]
+  },
+  {
+    "id": "demo-restricted",
+    "shortLabel": "DEMO 3 - RESTRICTED ROUTE",
+    "name": "Substation Direct Transit (Crosses RED)",
+    "description": "Start and destination are outside restricted airspace, but the middle segment intersects RED zone RZ-01.",
+    "expectedVerdict": "REJECTED",
+    "plannedAltitudeMeters": 60,
+    "droneModel": "CargoQuad V3",
+    "flightSpeedMps": 14,
+    "permissionGranted": false,
+    "coordinates": [
+      [-121.608, 36.851],
+      [-121.576, 36.851]
+    ]
+  },
+  {
+    "id": "demo-altitude",
+    "shortLabel": "DEMO 4 - ALTITUDE VIOLATION",
+    "name": "Meadowbrook High-Altitude Pass",
+    "description": "Stays inside GREEN zone GZ-02 horizontally, but exceeds the configured 100 m maximum ceiling at 135 m.",
+    "expectedVerdict": "REJECTED",
+    "plannedAltitudeMeters": 135,
+    "droneModel": "StratMapper Pro",
+    "flightSpeedMps": 15,
+    "permissionGranted": false,
+    "coordinates": [
+      [-121.605, 36.825],
+      [-121.585, 36.825]
+    ]
+  },
+  {
+    "id": "demo-multizone",
+    "shortLabel": "DEMO 5 - MULTI-ZONE CORRIDOR",
+    "name": "Cross-Valley Multi-Sector Flight",
+    "description": "Spans GREEN (GZ-01), RED (RZ-01), and YELLOW (YZ-02) zones to demonstrate multi-zone rule evaluation.",
+    "expectedVerdict": "REJECTED",
+    "plannedAltitudeMeters": 60,
+    "droneModel": "Tenorix Scout X4",
+    "flightSpeedMps": 12,
+    "permissionGranted": false,
+    "coordinates": [
+      [-121.635, 36.830],
+      [-121.592, 36.850],
+      [-121.555, 36.858]
+    ]
+  }
+]

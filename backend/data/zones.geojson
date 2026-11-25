@@ -1,0 +1,284 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "datasetName": "TENORIX Synthetic Demo Airspace v1",
+    "datasetSource": "SYNTHETIC_DEMO_DATASET_V1",
+    "ruleVersion": "2026.1-PROTO",
+    "disclaimer": "SYNTHETIC DEMO DATA ONLY. Coordinates and zone boundaries are fictional for hackathon demonstration and do not represent official aviation airspace or legal flight authorization."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "GZ-01",
+      "properties": {
+        "id": "GZ-01",
+        "name": "Horizon Valley Green Corridor",
+        "zoneType": "CORRIDOR",
+        "restrictionLevel": "GREEN",
+        "description": "Open agricultural demo corridor designated for standard low-altitude UAV flight operations under prototype rules.",
+        "minAltitudeMeters": 0,
+        "maxAltitudeMeters": 120,
+        "ruleId": "RULE-G-101",
+        "ruleVersion": "2026.1-PROTO",
+        "permissionRequired": false,
+        "dataSource": "TENORIX Synthetic Demo Dataset v1",
+        "lastUpdated": "2026-11-01T00:00:00Z"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-121.645, 36.815],
+            [-121.615, 36.815],
+            [-121.615, 36.840],
+            [-121.645, 36.840],
+            [-121.645, 36.815]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "GZ-02",
+      "properties": {
+        "id": "GZ-02",
+        "name": "Meadowbrook Low-Ceiling Zone",
+        "zoneType": "TRAINING_SECTOR",
+        "restrictionLevel": "GREEN",
+        "description": "Permitted open training field with a configured ceiling of 100 m and minimum safe ground clearance of 10 m.",
+        "minAltitudeMeters": 10,
+        "maxAltitudeMeters": 100,
+        "ruleId": "RULE-G-102",
+        "ruleVersion": "2026.1-PROTO",
+        "permissionRequired": false,
+        "dataSource": "TENORIX Synthetic Demo Dataset v1",
+        "lastUpdated": "2026-11-01T00:00:00Z"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-121.610, 36.815],
+            [-121.580, 36.815],
+            [-121.580, 36.835],
+            [-121.610, 36.835],
+            [-121.610, 36.815]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "GZ-03",
+      "properties": {
+        "id": "GZ-03",
+        "name": "Riverbend Open Survey Sector",
+        "zoneType": "SURVEY_ZONE",
+        "restrictionLevel": "GREEN",
+        "description": "Unobstructed riverbend mapping sector approved for general prototype drone routing up to 120 m AGL.",
+        "minAltitudeMeters": 0,
+        "maxAltitudeMeters": 120,
+        "ruleId": "RULE-G-103",
+        "ruleVersion": "2026.1-PROTO",
+        "permissionRequired": false,
+        "dataSource": "TENORIX Synthetic Demo Dataset v1",
+        "lastUpdated": "2026-11-01T00:00:00Z"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-121.575, 36.815],
+            [-121.540, 36.815],
+            [-121.540, 36.840],
+            [-121.575, 36.840],
+            [-121.575, 36.815]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "YZ-01",
+      "properties": {
+        "id": "YZ-01",
+        "name": "Cedar Ridge Caution Corridor",
+        "zoneType": "CAUTION_AREA",
+        "restrictionLevel": "YELLOW",
+        "description": "Conditional hillside corridor requiring demo operator clearance and adherence to a 15 m - 90 m altitude band.",
+        "minAltitudeMeters": 15,
+        "maxAltitudeMeters": 90,
+        "ruleId": "RULE-Y-201",
+        "ruleVersion": "2026.1-PROTO",
+        "permissionRequired": true,
+        "dataSource": "TENORIX Synthetic Demo Dataset v1",
+        "lastUpdated": "2026-11-01T00:00:00Z"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-121.640, 36.845],
+            [-121.610, 36.845],
+            [-121.610, 36.868],
+            [-121.640, 36.868],
+            [-121.640, 36.845]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "YZ-02",
+      "properties": {
+        "id": "YZ-02",
+        "name": "Industrial Park Operations Buffer",
+        "zoneType": "INFRASTRUCTURE_BUFFER",
+        "restrictionLevel": "YELLOW",
+        "description": "Conditional logistics hub buffer where demo permission is required and flights must remain between 20 m and 80 m.",
+        "minAltitudeMeters": 20,
+        "maxAltitudeMeters": 80,
+        "ruleId": "RULE-Y-202",
+        "ruleVersion": "2026.1-PROTO",
+        "permissionRequired": true,
+        "dataSource": "TENORIX Synthetic Demo Dataset v1",
+        "lastUpdated": "2026-11-01T00:00:00Z"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-121.575, 36.845],
+            [-121.545, 36.845],
+            [-121.545, 36.868],
+            [-121.575, 36.868],
+            [-121.575, 36.845]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "YZ-03",
+      "properties": {
+        "id": "YZ-03",
+        "name": "Solar Array Utility Easement",
+        "zoneType": "UTILITY_EASEMENT",
+        "restrictionLevel": "YELLOW",
+        "description": "Conditional photovoltaic utility zone requiring prior demo authorization and maintaining 15 m - 85 m AGL.",
+        "minAltitudeMeters": 15,
+        "maxAltitudeMeters": 85,
+        "ruleId": "RULE-Y-203",
+        "ruleVersion": "2026.1-PROTO",
+        "permissionRequired": true,
+        "dataSource": "TENORIX Synthetic Demo Dataset v1",
+        "lastUpdated": "2026-11-01T00:00:00Z"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-121.605, 36.868],
+            [-121.580, 36.868],
+            [-121.580, 36.885],
+            [-121.605, 36.885],
+            [-121.605, 36.868]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "RZ-01",
+      "properties": {
+        "id": "RZ-01",
+        "name": "Central Substation Exclusion Zone",
+        "zoneType": "PROHIBITED_DEMO",
+        "restrictionLevel": "RED",
+        "description": "Prohibited synthetic high-voltage substation perimeter. Any route intersection triggers automatic REJECTED status.",
+        "minAltitudeMeters": 0,
+        "maxAltitudeMeters": 0,
+        "ruleId": "RULE-R-301",
+        "ruleVersion": "2026.1-PROTO",
+        "permissionRequired": false,
+        "dataSource": "TENORIX Synthetic Demo Dataset v1",
+        "lastUpdated": "2026-11-01T00:00:00Z"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-121.605, 36.842],
+            [-121.580, 36.842],
+            [-121.580, 36.860],
+            [-121.605, 36.860],
+            [-121.605, 36.842]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "RZ-02",
+      "properties": {
+        "id": "RZ-02",
+        "name": "North Reservoir Protected Buffer",
+        "zoneType": "PROHIBITED_DEMO",
+        "restrictionLevel": "RED",
+        "description": "Prohibited synthetic watershed protection zone. Drone entry is disallowed under prototype safety rules.",
+        "minAltitudeMeters": 0,
+        "maxAltitudeMeters": 0,
+        "ruleId": "RULE-R-302",
+        "ruleVersion": "2026.1-PROTO",
+        "permissionRequired": false,
+        "dataSource": "TENORIX Synthetic Demo Dataset v1",
+        "lastUpdated": "2026-11-01T00:00:00Z"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-121.642, 36.872],
+            [-121.620, 36.872],
+            [-121.612, 36.880],
+            [-121.618, 36.888],
+            [-121.642, 36.886],
+            [-121.642, 36.872]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "RZ-03",
+      "properties": {
+        "id": "RZ-03",
+        "name": "East Telemetry Mast No-Fly Perimeter",
+        "zoneType": "PROHIBITED_DEMO",
+        "restrictionLevel": "RED",
+        "description": "Prohibited synthetic RF telemetry tower exclusion perimeter. Routes crossing this boundary are rejected.",
+        "minAltitudeMeters": 0,
+        "maxAltitudeMeters": 0,
+        "ruleId": "RULE-R-303",
+        "ruleVersion": "2026.1-PROTO",
+        "permissionRequired": false,
+        "dataSource": "TENORIX Synthetic Demo Dataset v1",
+        "lastUpdated": "2026-11-01T00:00:00Z"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-121.565, 36.872],
+            [-121.545, 36.872],
+            [-121.540, 36.880],
+            [-121.545, 36.888],
+            [-121.565, 36.888],
+            [-121.570, 36.880],
+            [-121.565, 36.872]
+          ]
+        ]
+      }
+    }
+  ]
+}
