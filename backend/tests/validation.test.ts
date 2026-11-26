@@ -1,12 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
 import { generateRouteAlternatives } from '../src/algorithms/detourAlgorithm.js';
 import { JsonFileRepository } from '../src/services/storageService.js';
 import { validateFlightRoute } from '../src/services/validationEngine.js';
 import { AirspaceZoneFeature } from '../src/types/index.js';
 import { validateCoordinates, validateZonePolygon } from '../src/validators/inputValidators.js';
 
-const repo = new JsonFileRepository();
+const testDbPath = path.join(os.tmpdir(), `tenorix-val-test-${Date.now()}.json`);
+const repo = new JsonFileRepository({ dbPath: testDbPath });
 const zones = repo.getZones();
+
+afterAll(() => {
+  if (fs.existsSync(testDbPath)) {
+    fs.unlinkSync(testDbPath);
+  }
+});
 
 describe('TENORIX Geospatial Validation Engine', () => {
   it('1. approves a route completely outside all zones within prototype ceiling', () => {

@@ -1,9 +1,11 @@
 import {
   AirspaceFeatureCollection,
+  AirspaceZoneFeature,
   AlternativeRouteCandidate,
   DashboardStats,
   DemoRoute,
   LngLat,
+  RestrictionLevel,
   ValidateRouteResponse,
   ValidationRecord,
 } from '../types';
@@ -45,6 +47,59 @@ export const api = {
   getZones(level?: string) {
     const query = level && level !== 'ALL' ? `?level=${encodeURIComponent(level)}` : '';
     return requestJson<AirspaceFeatureCollection>(`/zones${query}`);
+  },
+
+  createZone(payload: {
+    name: string;
+    restrictionLevel: RestrictionLevel;
+    coordinates: LngLat[];
+    zoneType?: string;
+    description?: string;
+    minAltitudeMeters?: number | null;
+    maxAltitudeMeters?: number | null;
+    permissionRequired?: boolean;
+  }) {
+    return requestJson<{ zone: AirspaceZoneFeature }>('/zones', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateZone(
+    id: string,
+    payload: {
+      name?: string;
+      restrictionLevel?: RestrictionLevel;
+      coordinates?: LngLat[];
+      zoneType?: string;
+      description?: string;
+      minAltitudeMeters?: number | null;
+      maxAltitudeMeters?: number | null;
+      permissionRequired?: boolean;
+    }
+  ) {
+    return requestJson<{ zone: AirspaceZoneFeature }>(`/zones/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteZone(id: string) {
+    return requestJson<{ deleted: boolean; id: string }>(`/zones/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  clearZones() {
+    return requestJson<{ features: AirspaceZoneFeature[] }>('/zones', {
+      method: 'DELETE',
+    });
+  },
+
+  resetZones() {
+    return requestJson<{ features: AirspaceZoneFeature[] }>('/zones/reset', {
+      method: 'POST',
+    });
   },
 
   getDemoRoutes() {

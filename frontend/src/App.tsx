@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { AboutPage } from './pages/AboutPage';
+import { AdminPanelPage } from './pages/AdminPanelPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { FlightHistoryPage } from './pages/FlightHistoryPage';
 import { FlightPlannerPage } from './pages/FlightPlannerPage';
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/results/:id" element={<ValidationResultsPage />} />
             <Route path="/history" element={<FlightHistoryPage />} />
             <Route path="/zones" element={<ZonesExplorerPage />} />
+            <Route path="/admin" element={<AdminPanelPage />} />
             <Route path="/about" element={<AboutPage />} />
           </Routes>
         </main>

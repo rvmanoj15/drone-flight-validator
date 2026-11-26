@@ -5,7 +5,12 @@ import { generateRouteAlternatives } from '../algorithms/detourAlgorithm.js';
 import { generateValidationPdfBuffer } from '../services/pdfService.js';
 import { IStorageRepository } from '../services/storageService.js';
 import { validateFlightRoute } from '../services/validationEngine.js';
-import { DashboardStats, FlightPlanRecord } from '../types/index.js';
+import {
+  AirspaceZoneFeature,
+  DashboardStats,
+  FlightPlanRecord,
+  RestrictionLevel,
+} from '../types/index.js';
 import {
   DATASET_SOURCE,
   RULE_VERSION,
@@ -13,7 +18,11 @@ import {
   alternativeRouteRequestSchema,
   flightPlanPayloadSchema,
   flightPlanUpdateSchema,
+  normalizeClosedRing,
   sanitizeText,
+  validateZonePolygon,
+  zonePayloadSchema,
+  zoneUpdateSchema,
 } from '../validators/inputValidators.js';
 
 function paramStr(val: string | string[] | undefined): string {
@@ -41,6 +50,7 @@ export class ApiController {
         ? collection.features.filter((f) => f.properties.restrictionLevel === level)
         : collection.features;
 
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({
       type: 'FeatureCollection',
       metadata: collection.metadata,
@@ -56,6 +66,223 @@ export class ApiController {
       return;
     }
     res.json({ zone });
+  };
+
+  private nextZoneIds(level: RestrictionLevel, existingZones: AirspaceZoneFeature[]) {
+    const prefix = level === 'RED' ? 'RZ' : level === 'YELLOW' ? 'YZ' : 'GZ';
+    const rulePrefix = level === 'RED' ? 'RULE-R-3' : level === 'YELLOW' ? 'RULE-Y-2' : 'RULE-G-1';
+    let counter = 1;
+    while (existingZones.some((z) => z.properties.id === `${prefix}-${String(counter).padStart(2, '0')}`)) {
+      counter++;
+    }
+    const suffix = String(counter).padStart(2, '0');
+    return {
+      zoneId: `${prefix}-${suffix}`,
+      ruleId: `${rulePrefix}${suffix}`,
+    };
+  }
+
+  private defaultZoneMetadata(level: RestrictionLevel) {
+    if (level === 'RED') {
+      return {
+        zoneType: 'PROHIBITED_CUSTOM',
+        minAltitudeMeters: 0,
+        maxAltitudeMeters: 0,
+        permissionRequired: false,
+        description: 'Admin-defined prohibited no-fly demo zone. Route intersections trigger REJECTED.',
+      };
+    }
+    if (level === 'YELLOW') {
+      return {
+        zoneType: 'CAUTION_CUSTOM',
+        minAltitudeMeters: 15,
+        maxAltitudeMeters: 90,
+        permissionRequired: true,
+        description: 'Admin-defined conditional caution zone requiring demo clearance and altitude compliance.',
+      };
+    }
+    return {
+      zoneType: 'CORRIDOR_CUSTOM',
+      minAltitudeMeters: 0,
+      maxAltitudeMeters: 120,
+      permissionRequired: false,
+      description: 'Admin-defined open demo corridor permitted within configured altitude bounds.',
+    };
+  }
+
+  createZone = (req: Request, res: Response) => {
+    const parsed = zonePayloadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Invalid airspace zone payload.',
+        details: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+      return;
+    }
+
+    const data = parsed.data;
+    const ring = normalizeClosedRing(data.coordinates);
+    const existingZones = this.repo.getZones();
+    const { zoneId, ruleId } = this.nextZoneIds(data.restrictionLevel, existingZones);
+    const defaults = this.defaultZoneMetadata(data.restrictionLevel);
+
+    const minAlt =
+      data.restrictionLevel === 'RED'
+        ? 0
+        : data.minAltitudeMeters !== undefined
+          ? data.minAltitudeMeters
+          : defaults.minAltitudeMeters;
+    const maxAlt =
+      data.restrictionLevel === 'RED'
+        ? 0
+        : data.maxAltitudeMeters !== undefined
+          ? data.maxAltitudeMeters
+          : defaults.maxAltitudeMeters;
+
+    if (minAlt !== null && maxAlt !== null && minAlt > maxAlt) {
+      res.status(400).json({ error: 'Minimum altitude cannot exceed maximum altitude.' });
+      return;
+    }
+
+    const feature: AirspaceZoneFeature = {
+      type: 'Feature',
+      id: zoneId,
+      properties: {
+        id: zoneId,
+        name: sanitizeText(data.name),
+        zoneType: sanitizeText(data.zoneType || defaults.zoneType),
+        restrictionLevel: data.restrictionLevel,
+        description: sanitizeText(data.description || defaults.description),
+        minAltitudeMeters: minAlt,
+        maxAltitudeMeters: maxAlt,
+        ruleId,
+        ruleVersion: RULE_VERSION,
+        permissionRequired:
+          data.restrictionLevel === 'RED'
+            ? false
+            : data.permissionRequired ?? defaults.permissionRequired,
+        dataSource: 'TENORIX Admin Custom Airspace (Synthetic)',
+        lastUpdated: new Date().toISOString(),
+      },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [ring],
+      },
+    };
+
+    const polyCheck = validateZonePolygon(feature);
+    if (!polyCheck.valid) {
+      res.status(400).json({
+        error: `Invalid polygon shape: ${polyCheck.reason ?? 'Geometry failed validation.'}`,
+      });
+      return;
+    }
+
+    const saved = this.repo.saveZone(feature);
+    res.status(201).json({ zone: saved });
+  };
+
+  updateZone = (req: Request, res: Response) => {
+    const id = paramStr(req.params.id);
+    const existing = this.repo.getZoneById(id);
+    if (!existing) {
+      res.status(404).json({ error: `Airspace zone '${id}' not found.` });
+      return;
+    }
+
+    const parsed = zoneUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Invalid airspace zone update payload.',
+        details: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+      return;
+    }
+
+    const patch = parsed.data;
+    const nextLevel = patch.restrictionLevel ?? existing.properties.restrictionLevel;
+    const defaults = this.defaultZoneMetadata(nextLevel);
+    const nextCoords = patch.coordinates
+      ? [normalizeClosedRing(patch.coordinates)]
+      : existing.geometry.coordinates;
+
+    const minAlt =
+      nextLevel === 'RED'
+        ? 0
+        : patch.minAltitudeMeters !== undefined
+          ? patch.minAltitudeMeters
+          : existing.properties.restrictionLevel === 'RED'
+            ? defaults.minAltitudeMeters
+            : existing.properties.minAltitudeMeters;
+
+    const maxAlt =
+      nextLevel === 'RED'
+        ? 0
+        : patch.maxAltitudeMeters !== undefined
+          ? patch.maxAltitudeMeters
+          : existing.properties.restrictionLevel === 'RED'
+            ? defaults.maxAltitudeMeters
+            : existing.properties.maxAltitudeMeters;
+
+    if (minAlt !== null && maxAlt !== null && minAlt > maxAlt) {
+      res.status(400).json({ error: 'Minimum altitude cannot exceed maximum altitude.' });
+      return;
+    }
+
+    const updated: AirspaceZoneFeature = {
+      ...existing,
+      properties: {
+        ...existing.properties,
+        name: patch.name !== undefined ? sanitizeText(patch.name) : existing.properties.name,
+        restrictionLevel: nextLevel,
+        zoneType: patch.zoneType !== undefined ? sanitizeText(patch.zoneType) : existing.properties.zoneType,
+        description:
+          patch.description !== undefined
+            ? sanitizeText(patch.description)
+            : existing.properties.description,
+        minAltitudeMeters: minAlt,
+        maxAltitudeMeters: maxAlt,
+        permissionRequired:
+          nextLevel === 'RED'
+            ? false
+            : patch.permissionRequired ?? existing.properties.permissionRequired,
+        lastUpdated: new Date().toISOString(),
+      },
+      geometry: patch.coordinates
+        ? { type: 'Polygon', coordinates: nextCoords as number[][][] }
+        : existing.geometry,
+    };
+
+    const polyCheck = validateZonePolygon(updated);
+    if (!polyCheck.valid) {
+      res.status(400).json({
+        error: `Invalid polygon shape: ${polyCheck.reason ?? 'Geometry failed validation.'}`,
+      });
+      return;
+    }
+
+    this.repo.updateZone(id, updated);
+    res.json({ zone: updated });
+  };
+
+  deleteZone = (req: Request, res: Response) => {
+    const id = paramStr(req.params.id);
+    const deleted = this.repo.deleteZone(id);
+    if (!deleted) {
+      res.status(404).json({ error: `Airspace zone '${id}' not found.` });
+      return;
+    }
+    res.json({ deleted: true, id });
+  };
+
+  clearZones = (_req: Request, res: Response) => {
+    this.repo.clearZones();
+    res.json({ features: [] });
+  };
+
+  resetZones = (_req: Request, res: Response) => {
+    const features = this.repo.resetZonesToDefault();
+    res.json({ features });
   };
 
   getDemoRoutes = (_req: Request, res: Response) => {

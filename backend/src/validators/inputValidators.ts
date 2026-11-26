@@ -62,6 +62,41 @@ export const alternativeRouteRequestSchema = z.object({
   permissionGranted: z.boolean().optional().default(false),
 });
 
+export const restrictionLevelSchema = z.enum(['RED', 'YELLOW', 'GREEN']);
+
+export const zonePayloadSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Zone name is required')
+    .max(100, 'Zone name must be 100 characters or fewer'),
+  restrictionLevel: restrictionLevelSchema,
+  zoneType: z.string().trim().max(60).optional(),
+  description: z.string().trim().max(400).optional(),
+  coordinates: z
+    .array(coordinateSchema)
+    .min(3, 'A polygon zone requires at least 3 distinct coordinates')
+    .max(200, 'Zone polygon cannot exceed 200 vertices'),
+  minAltitudeMeters: z.number().finite().min(0).max(5000).nullable().optional(),
+  maxAltitudeMeters: z.number().finite().min(0).max(5000).nullable().optional(),
+  permissionRequired: z.boolean().optional(),
+});
+
+export const zoneUpdateSchema = zonePayloadSchema.partial();
+
+/**
+ * Ensures a polygon coordinate ring is explicitly closed (first === last).
+ */
+export function normalizeClosedRing(coords: LngLat[]): LngLat[] {
+  if (coords.length === 0) return [];
+  const first = coords[0];
+  const last = coords[coords.length - 1];
+  if (first[0] === last[0] && first[1] === last[1]) {
+    return coords;
+  }
+  return [...coords, [first[0], first[1]]];
+}
+
 /**
  * Validates that a coordinate array represents valid finite [lng, lat] pairs.
  */

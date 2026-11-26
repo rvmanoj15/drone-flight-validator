@@ -6,7 +6,12 @@ export function createApiRouter(controller: ApiController): Router {
 
   router.get('/health', controller.health);
   router.get('/zones', controller.getZones);
+  router.post('/zones', controller.createZone);
+  router.post('/zones/reset', controller.resetZones);
+  router.delete('/zones', controller.clearZones);
   router.get('/zones/:id', controller.getZoneById);
+  router.put('/zones/:id', controller.updateZone);
+  router.delete('/zones/:id', controller.deleteZone);
   router.get('/demo/routes', controller.getDemoRoutes);
 
   router.post('/flight-plans', controller.createFlightPlan);

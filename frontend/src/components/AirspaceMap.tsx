@@ -227,7 +227,10 @@ export function AirspaceMap({
   };
 
   const zonesKey = useMemo(
-    () => zones.map((z) => z.properties.id).join(','),
+    () =>
+      zones
+        .map((z) => `${z.properties.id}:${z.properties.restrictionLevel}:${z.properties.lastUpdated}`)
+        .join(','),
     [zones]
   );
 

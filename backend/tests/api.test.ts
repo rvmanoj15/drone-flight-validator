@@ -153,4 +153,70 @@ describe('TENORIX REST API & Persistence', () => {
     expect(correctedPdf.status).toBe(200);
     expect(correctedPdf.body.slice(0, 4).toString()).toBe('%PDF');
   });
+
+  it('allows admin zone creation, recoloring, deletion, and reset, and immediately enforces custom zones in validation', async () => {
+    const app = createTestApp();
+
+    // Verify a route in open space passes initially
+    const openCoords: [number, number][] = [
+      [-121.652, 36.820],
+      [-121.652, 36.836],
+    ];
+    const before = await request(app).post('/api/validate').send({
+      name: 'Pre-Admin Route',
+      coordinates: openCoords,
+      plannedAltitudeMeters: 50,
+    });
+    expect(before.status).toBe(200);
+    expect(before.body.validation.verdict).toBe('APPROVED');
+
+    // Admin draws a new RED polygon directly across that open route
+    const createZoneRes = await request(app).post('/api/zones').send({
+      name: 'Admin Custom No-Fly',
+      restrictionLevel: 'RED',
+      coordinates: [
+        [-121.656, 36.824],
+        [-121.648, 36.824],
+        [-121.648, 36.832],
+        [-121.656, 36.832],
+      ],
+    });
+    expect(createZoneRes.status).toBe(201);
+    const createdId = createZoneRes.body.zone.properties.id;
+
+    // Now the exact same route must be REJECTED
+    const afterRed = await request(app).post('/api/validate').send({
+      name: 'Post-Admin RED Route',
+      coordinates: openCoords,
+      plannedAltitudeMeters: 50,
+    });
+    expect(afterRed.status).toBe(200);
+    expect(afterRed.body.validation.verdict).toBe('REJECTED');
+    expect(afterRed.body.validation.intersections.some((i: { zoneId: string }) => i.zoneId === createdId)).toBe(true);
+
+    // Admin recolors the zone to GREEN
+    const updateZoneRes = await request(app).put(`/api/zones/${createdId}`).send({
+      restrictionLevel: 'GREEN',
+      minAltitudeMeters: 0,
+      maxAltitudeMeters: 120,
+    });
+    expect(updateZoneRes.status).toBe(200);
+    expect(updateZoneRes.body.zone.properties.restrictionLevel).toBe('GREEN');
+
+    const afterGreen = await request(app).post('/api/validate').send({
+      name: 'Post-Admin GREEN Route',
+      coordinates: openCoords,
+      plannedAltitudeMeters: 50,
+    });
+    expect(afterGreen.status).toBe(200);
+    expect(afterGreen.body.validation.verdict).toBe('APPROVED');
+
+    // Admin deletes the custom zone and resets defaults
+    const delZoneRes = await request(app).delete(`/api/zones/${createdId}`);
+    expect(delZoneRes.status).toBe(200);
+
+    const resetRes = await request(app).post('/api/zones/reset');
+    expect(resetRes.status).toBe(200);
+    expect(resetRes.body.features.length).toBe(9);
+  });
 });

@@ -17,6 +17,7 @@ const DATA_DIR = path.resolve(__dirname, '../../data');
 export interface DatabaseSchema {
   flightPlans: FlightPlanRecord[];
   validations: ValidationRecord[];
+  zones?: AirspaceZoneFeature[];
 }
 
 /**
@@ -27,6 +28,11 @@ export interface IStorageRepository {
   getZones(): AirspaceZoneFeature[];
   getZonesCollection(): AirspaceFeatureCollection;
   getZoneById(id: string): AirspaceZoneFeature | undefined;
+  saveZone(zone: AirspaceZoneFeature): AirspaceZoneFeature;
+  updateZone(id: string, updated: AirspaceZoneFeature): AirspaceZoneFeature | undefined;
+  deleteZone(id: string): boolean;
+  clearZones(): void;
+  resetZonesToDefault(): AirspaceZoneFeature[];
   getDemoRoutes(): DemoRoute[];
   listFlightPlans(): FlightPlanRecord[];
   getFlightPlanById(id: string): FlightPlanRecord | undefined;
@@ -42,7 +48,7 @@ export class JsonFileRepository implements IStorageRepository {
   private readonly zonesPath: string;
   private readonly demoRoutesPath: string;
   private readonly dbPath: string;
-  private zonesCache: AirspaceFeatureCollection | null = null;
+  private seedZonesCollectionCache: AirspaceFeatureCollection | null = null;
   private demoRoutesCache: DemoRoute[] | null = null;
 
   constructor(options?: { zonesPath?: string; demoRoutesPath?: string; dbPath?: string }) {
@@ -51,48 +57,50 @@ export class JsonFileRepository implements IStorageRepository {
     this.dbPath = options?.dbPath ?? path.join(DATA_DIR, 'db.json');
   }
 
-  getZonesCollection(): AirspaceFeatureCollection {
-    if (this.zonesCache) return this.zonesCache;
+  private readSeedZonesCollection(): AirspaceFeatureCollection {
+    if (this.seedZonesCollectionCache) return this.seedZonesCollectionCache;
     const raw = fs.readFileSync(this.zonesPath, 'utf-8');
     const parsed = JSON.parse(raw) as AirspaceFeatureCollection;
     const validFeatures = (parsed.features ?? []).filter((f) => validateZonePolygon(f).valid);
-    this.zonesCache = {
+    this.seedZonesCollectionCache = {
       ...parsed,
       features: validFeatures,
     };
-    return this.zonesCache;
-  }
-
-  getZones(): AirspaceZoneFeature[] {
-    return this.getZonesCollection().features;
-  }
-
-  getZoneById(id: string): AirspaceZoneFeature | undefined {
-    return this.getZones().find((z) => z.properties.id === id || z.id === id);
-  }
-
-  getDemoRoutes(): DemoRoute[] {
-    if (this.demoRoutesCache) return this.demoRoutesCache;
-    const raw = fs.readFileSync(this.demoRoutesPath, 'utf-8');
-    this.demoRoutesCache = JSON.parse(raw) as DemoRoute[];
-    return this.demoRoutesCache;
+    return this.seedZonesCollectionCache;
   }
 
   private readDb(): DatabaseSchema {
     if (!fs.existsSync(this.dbPath)) {
-      const initial: DatabaseSchema = { flightPlans: [], validations: [] };
+      const seed = this.readSeedZonesCollection();
+      const initial: DatabaseSchema = {
+        flightPlans: [],
+        validations: [],
+        zones: structuredClone(seed.features),
+      };
       this.writeDb(initial);
       return initial;
     }
     try {
       const raw = fs.readFileSync(this.dbPath, 'utf-8');
       const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
-      return {
+      let zones = Array.isArray(parsed.zones) ? parsed.zones : undefined;
+      const db: DatabaseSchema = {
         flightPlans: Array.isArray(parsed.flightPlans) ? parsed.flightPlans : [],
         validations: Array.isArray(parsed.validations) ? parsed.validations : [],
+        zones,
       };
+      // Seed zones once if an older db.json file existed without a zones array
+      if (zones === undefined) {
+        db.zones = structuredClone(this.readSeedZonesCollection().features);
+        this.writeDb(db);
+      }
+      return db;
     } catch {
-      return { flightPlans: [], validations: [] };
+      return {
+        flightPlans: [],
+        validations: [],
+        zones: structuredClone(this.readSeedZonesCollection().features),
+      };
     }
   }
 
@@ -104,6 +112,81 @@ export class JsonFileRepository implements IStorageRepository {
     const tmpPath = `${this.dbPath}.tmp`;
     fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
     fs.renameSync(tmpPath, this.dbPath);
+  }
+
+  getZonesCollection(): AirspaceFeatureCollection {
+    const seed = this.readSeedZonesCollection();
+    const db = this.readDb();
+    const activeZones = (db.zones ?? []).filter((f) => validateZonePolygon(f).valid);
+    return {
+      type: 'FeatureCollection',
+      metadata: seed.metadata,
+      features: activeZones,
+    };
+  }
+
+  getZones(): AirspaceZoneFeature[] {
+    return this.getZonesCollection().features;
+  }
+
+  getZoneById(id: string): AirspaceZoneFeature | undefined {
+    return this.getZones().find((z) => z.properties.id === id || z.id === id);
+  }
+
+  saveZone(zone: AirspaceZoneFeature): AirspaceZoneFeature {
+    const db = this.readDb();
+    const zones = db.zones ?? [];
+    const existingIndex = zones.findIndex((z) => z.properties.id === zone.properties.id);
+    if (existingIndex >= 0) {
+      zones[existingIndex] = zone;
+    } else {
+      zones.push(zone);
+    }
+    db.zones = zones;
+    this.writeDb(db);
+    return zone;
+  }
+
+  updateZone(id: string, updated: AirspaceZoneFeature): AirspaceZoneFeature | undefined {
+    const db = this.readDb();
+    const zones = db.zones ?? [];
+    const idx = zones.findIndex((z) => z.properties.id === id || z.id === id);
+    if (idx < 0) return undefined;
+    zones[idx] = updated;
+    db.zones = zones;
+    this.writeDb(db);
+    return updated;
+  }
+
+  deleteZone(id: string): boolean {
+    const db = this.readDb();
+    const zones = db.zones ?? [];
+    const next = zones.filter((z) => z.properties.id !== id && z.id !== id);
+    if (next.length === zones.length) return false;
+    db.zones = next;
+    this.writeDb(db);
+    return true;
+  }
+
+  clearZones(): void {
+    const db = this.readDb();
+    db.zones = [];
+    this.writeDb(db);
+  }
+
+  resetZonesToDefault(): AirspaceZoneFeature[] {
+    const db = this.readDb();
+    const defaults = structuredClone(this.readSeedZonesCollection().features);
+    db.zones = defaults;
+    this.writeDb(db);
+    return defaults;
+  }
+
+  getDemoRoutes(): DemoRoute[] {
+    if (this.demoRoutesCache) return this.demoRoutesCache;
+    const raw = fs.readFileSync(this.demoRoutesPath, 'utf-8');
+    this.demoRoutesCache = JSON.parse(raw) as DemoRoute[];
+    return this.demoRoutesCache;
   }
 
   listFlightPlans(): FlightPlanRecord[] {

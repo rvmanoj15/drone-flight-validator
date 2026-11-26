@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   ShieldAlert,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { to: '/planner', label: 'Flight Planner', icon: Map },
   { to: '/history', label: 'Flight History', icon: History },
   { to: '/zones', label: 'Airspace Zones', icon: Layers },
+  { to: '/admin', label: 'Admin Panel', icon: SlidersHorizontal },
   { to: '/about', label: 'About', icon: Info },
 ];
 
