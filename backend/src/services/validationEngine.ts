@@ -376,7 +376,7 @@ export function validateFlightRoute(
     warnings,
     recommendations: Array.from(new Set(recommendations)),
     ruleVersion: RULE_VERSION,
-    datasetSource: DATASET_SOURCE,
+    datasetSource: input.airspaceSource ? sanitizeText(input.airspaceSource) : DATASET_SOURCE,
     disclaimer: SYNTHETIC_DISCLAIMER,
     isDemoSeed: Boolean(input.isDemoSeed),
     timestamp: new Date().toISOString(),

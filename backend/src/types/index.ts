@@ -57,6 +57,8 @@ export interface FlightPlanInput {
   name: string;
   coordinates: LngLat[];
   originalCoordinates?: LngLat[];
+  customZones?: AirspaceZoneFeature[];
+  airspaceSource?: string;
   plannedAltitudeMeters: number;
   droneModel?: string;
   flightSpeedMps?: number;
@@ -127,6 +129,7 @@ export interface ValidationRecord {
   coordinates: LngLat[];
   originalCoordinates?: LngLat[];
   alternativeRoutes?: AlternativeRouteCandidate[];
+  zonesSnapshot?: AirspaceZoneFeature[];
   routeGeoJson: {
     type: 'LineString';
     coordinates: LngLat[];

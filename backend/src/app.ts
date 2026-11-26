@@ -27,7 +27,7 @@ export function createApp(options?: CreateAppOptions) {
     })
   );
 
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '10mb' }));
 
   // Request logger
   app.use((req: Request, _res: Response, next: NextFunction) => {

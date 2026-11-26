@@ -9,6 +9,9 @@ import {
   MapPin,
   Sparkles,
   AlertCircle,
+  Upload,
+  FileCheck2,
+  X,
 } from 'lucide-react';
 import { AirspaceMap, DrawMode } from '../components/AirspaceMap';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
@@ -46,6 +49,15 @@ export function FlightPlannerPage() {
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const [zones, setZones] = useState<AirspaceZoneFeature[]>([]);
+  const [liveZones, setLiveZones] = useState<AirspaceZoneFeature[]>([]);
+  const [uploadedPdfMeta, setUploadedPdfMeta] = useState<{
+    filename: string;
+    zoneCount: number;
+    checksumVerified: boolean;
+    extractionMethod: string;
+  } | null>(null);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const [demoRoutes, setDemoRoutes] = useState<DemoRoute[]>([]);
   const [loadingInit, setLoadingInit] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
@@ -93,6 +105,7 @@ export function FlightPlannerPage() {
       .then(([zoneCollection, demoRes]) => {
         if (!active) return;
         setZones(zoneCollection.features);
+        setLiveZones(zoneCollection.features);
         setDemoRoutes(demoRes.routes);
 
         const state = location.state as LocationPrefillState | null;
@@ -148,6 +161,8 @@ export function FlightPlannerPage() {
   const handleResetDemo = () => {
     setEditingFlightPlanId(undefined);
     setOriginalRouteCoords(undefined);
+    setZones(liveZones);
+    setUploadedPdfMeta(null);
     setFlightName('Custom UAV Inspection Route');
     setCoordinates([]);
     setAltitudeMeters(60);
@@ -184,6 +199,8 @@ export function FlightPlannerPage() {
         name: flightName.trim() || 'Untitled Drone Route',
         coordinates: targetCoords,
         originalCoordinates: origCoords,
+        customZones: uploadedPdfMeta ? zones : undefined,
+        airspaceSource: uploadedPdfMeta ? `PDF: ${uploadedPdfMeta.filename}` : undefined,
         plannedAltitudeMeters: Number(altitudeMeters),
         droneModel: droneModel.trim() || 'Generic Quadcopter UAV',
         flightSpeedMps: Number(flightSpeedMps) || 12,
@@ -215,6 +232,41 @@ export function FlightPlannerPage() {
     setFlightName((prev) => (prev.includes('(Detour)') ? prev : `${prev} (Detour)`));
     setFitTrigger((n) => n + 1);
     await runValidation(candidate.coordinates, priorCoords);
+  };
+
+  const handleUploadZonesPdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPdf(true);
+    setValidationError(null);
+    try {
+      const res = await api.parseZonesPdf(file);
+      setZones(res.zones);
+      setUploadedPdfMeta({
+        filename: res.filename,
+        zoneCount: res.zoneCount,
+        checksumVerified: res.checksumVerified,
+        extractionMethod: res.extractionMethod,
+      });
+      setValidationResult(null);
+      setAlternatives([]);
+      setPreviewAltCoords(null);
+      setFitTrigger((n) => n + 1);
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : 'Failed to parse uploaded Airspace PDF.');
+    } finally {
+      setUploadingPdf(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  };
+
+  const handleSwitchToLiveZones = () => {
+    setZones(liveZones);
+    setUploadedPdfMeta(null);
+    setValidationResult(null);
+    setAlternatives([]);
+    setPreviewAltCoords(null);
+    setFitTrigger((n) => n + 1);
   };
 
   const quickDemoIds = ['demo-safe', 'demo-conditional', 'demo-restricted'];
@@ -537,6 +589,58 @@ export function FlightPlannerPage() {
                 <span>{validationError}</span>
               </div>
             )}
+
+            {/* Airspace PDF Upload (Pilot Briefing Input) */}
+            <div className="rounded-xl border border-slate-700/80 bg-navy-900/75 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-200">
+                  Airspace Briefing PDF (Optional)
+                </span>
+                {uploadedPdfMeta && (
+                  <button
+                    type="button"
+                    onClick={handleSwitchToLiveZones}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-300 hover:text-cyan-200"
+                  >
+                    <X className="h-3 w-3" />
+                    Use Live Zones
+                  </button>
+                )}
+              </div>
+
+              <input
+                ref={pdfInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={handleUploadZonesPdf}
+                className="hidden"
+              />
+
+              {uploadedPdfMeta ? (
+                <div className="flex items-start gap-2 rounded-lg border border-cyan-500/35 bg-cyan-500/10 p-2.5 text-[11px] text-cyan-200">
+                  <FileCheck2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+                  <div>
+                    <div className="font-bold">{uploadedPdfMeta.filename}</div>
+                    <div>
+                      Loaded {uploadedPdfMeta.zoneCount} zone(s) •{' '}
+                      {uploadedPdfMeta.checksumVerified
+                        ? 'Integrity Verified'
+                        : uploadedPdfMeta.extractionMethod}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => pdfInputRef.current?.click()}
+                  disabled={uploadingPdf}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-cyan-500/40 bg-navy-950/70 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50 transition"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploadingPdf ? 'Parsing Airspace PDF...' : 'Upload Admin Airspace PDF'}
+                </button>
+              )}
+            </div>
 
             {/* Primary Action Buttons */}
             <div className="flex gap-2.5 pt-1">

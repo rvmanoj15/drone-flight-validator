@@ -102,6 +102,31 @@ export const api = {
     });
   },
 
+  getZonesPdfDownloadUrl() {
+    return `${API_BASE}/zones/pdf`;
+  },
+
+  async parseZonesPdf(file: File) {
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const pdfBase64 = btoa(binary);
+    return requestJson<{
+      filename: string;
+      zoneCount: number;
+      zones: AirspaceZoneFeature[];
+      checksumVerified: boolean;
+      extractionMethod: 'EMBEDDED_GEOJSON' | 'TEXT_FALLBACK';
+      warnings: string[];
+    }>('/zones/parse-pdf', {
+      method: 'POST',
+      body: JSON.stringify({ filename: file.name, pdfBase64 }),
+    });
+  },
+
   getDemoRoutes() {
     return requestJson<{ routes: DemoRoute[]; datasetSource: string; disclaimer: string }>('/demo/routes');
   },
@@ -114,6 +139,8 @@ export const api = {
     name: string;
     coordinates: LngLat[];
     originalCoordinates?: LngLat[];
+    customZones?: AirspaceZoneFeature[];
+    airspaceSource?: string;
     plannedAltitudeMeters: number;
     droneModel?: string;
     flightSpeedMps?: number;

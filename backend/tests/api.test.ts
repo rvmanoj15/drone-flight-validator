@@ -219,4 +219,59 @@ describe('TENORIX REST API & Persistence', () => {
     expect(resetRes.status).toBe(200);
     expect(resetRes.body.features.length).toBe(9);
   });
+
+  it('exports Admin Airspace Zones PDF and allows Pilot PDF upload to validate route against PDF zones', async () => {
+    const app = createTestApp();
+
+    // Admin adds a custom RED zone in open west area
+    const createRes = await request(app).post('/api/zones').send({
+      name: 'PDF Briefing Hazard Zone',
+      restrictionLevel: 'RED',
+      coordinates: [
+        [-121.656, 36.824],
+        [-121.648, 36.824],
+        [-121.648, 36.832],
+        [-121.656, 36.832],
+      ],
+    });
+    expect(createRes.status).toBe(201);
+
+    // Admin downloads the Airspace Zones PDF
+    const pdfRes = await request(app).get('/api/zones/pdf');
+    expect(pdfRes.status).toBe(200);
+    expect(pdfRes.headers['content-type']).toContain('application/pdf');
+    expect(pdfRes.body.slice(0, 4).toString()).toBe('%PDF');
+
+    // Clear server zones to prove Pilot validation truly uses the uploaded PDF's zones
+    await request(app).delete('/api/zones');
+
+    const parseRes = await request(app).post('/api/zones/parse-pdf').send({
+      filename: 'TENORIX-Airspace-Zones.pdf',
+      pdfBase64: Buffer.from(pdfRes.body).toString('base64'),
+    });
+    expect(parseRes.status).toBe(200);
+    expect(parseRes.body.checksumVerified).toBe(true);
+    expect(parseRes.body.extractionMethod).toBe('EMBEDDED_GEOJSON');
+    expect(parseRes.body.zoneCount).toBe(10);
+
+    // Pilot validates route crossing the PDF's RED zone
+    const valRes = await request(app).post('/api/validate').send({
+      name: 'Pilot Route vs Uploaded PDF',
+      coordinates: [
+        [-121.652, 36.820],
+        [-121.652, 36.836],
+      ],
+      plannedAltitudeMeters: 50,
+      customZones: parseRes.body.zones,
+      airspaceSource: 'PDF: TENORIX-Airspace-Zones.pdf',
+    });
+    expect(valRes.status).toBe(200);
+    expect(valRes.body.validation.verdict).toBe('REJECTED');
+    expect(valRes.body.validation.datasetSource).toBe('PDF: TENORIX-Airspace-Zones.pdf');
+    expect(
+      valRes.body.validation.intersections.some(
+        (i: { zoneName: string }) => i.zoneName === 'PDF Briefing Hazard Zone'
+      )
+    ).toBe(true);
+  });
 });

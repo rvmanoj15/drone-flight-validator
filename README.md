@@ -31,8 +31,11 @@ TENORIX solves this with a server-side geospatial validation engine powered by *
 - **Click-to-Plot, Drag-to-Edit & Waypoint Management** (`Auto Draw`, `Set Start`, `Insert Waypoint`, `Set Destination`)
 - **Full-Route Backend Geospatial Engine** (Turf.js + Zod input validation)
 - **Route Alternative Assistance** with map preview and one-click candidate application
+- **Admin Airspace Zone Editor (`/admin`)** to draw custom Polygon, Box, or Circle zones, assign RED/YELLOW/GREEN rules, edit or reset zones, and export an **Airspace Briefing PDF**
+- **Pilot Airspace PDF Upload** in the Flight Planner to extract and verify zone polygons from an Admin Airspace PDF and validate routes directly against them
+- **Dual-Path PDF Validation Reports** rendering a 2D vector airspace map with both the given route and any updated/corrected detour path
 - **Hackathon Judge Demo Controls** (`LOAD HACKATHON DEMO`, `DEMO 1 - SAFE ROUTE`, `DEMO 2 - CONDITIONAL ROUTE`, `DEMO 3 - RESTRICTED ROUTE`, `DEMO 4 - ALTITUDE VIOLATION`, `DEMO 5 - MULTI-ZONE CORRIDOR`, `Reset Demo`)
-- **Live Operations Dashboard** computed from real persisted records
+- **Live Operations Dashboard** computed from real persisted records with direct **Edit Route** and **PDF** actions
 - **Flight History & Audit Trail** with search, verdict filtering, sorting, revalidation, deletion confirmation, and PDF re-download
 - **Airspace Zone Explorer** with RED/YELLOW/GREEN filtering and rule inspection
 
@@ -41,7 +44,7 @@ TENORIX solves this with a server-side geospatial validation engine powered by *
 ## Technology Stack
 
 - **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, Leaflet, React-Leaflet, Turf.js, Lucide Icons
-- **Backend:** Node.js, Express.js, TypeScript, Turf.js, Zod, PDFKit, CORS, Express Rate Limit
+- **Backend:** Node.js, Express.js, TypeScript, Turf.js, Zod, PDFKit, pdfjs-dist, CORS, Express Rate Limit
 - **Storage:** Persistent local JSON repository (`backend/data/db.json`) behind an `IStorageRepository` interface designed for drop-in PostgreSQL + PostGIS replacement
 - **Testing:** Vitest + Supertest
 
@@ -63,6 +66,7 @@ tenorix/ (workspace root)
 │   │   ├── controllers/apiController.ts
 │   │   ├── routes/apiRoutes.ts
 │   │   ├── services/
+│   │   │   ├── airspacePdfService.ts
 │   │   │   ├── pdfService.ts
 │   │   │   ├── seedService.ts
 │   │   │   ├── storageService.ts
@@ -73,11 +77,11 @@ tenorix/ (workspace root)
 │   │   └── server.ts
 │   └── tests/
 │       ├── validation.test.ts   # 14 core geospatial, altitude, and edge-case tests
-│       └── api.test.ts          # REST API, PDF, CRUD, and demo consistency tests
+│       └── api.test.ts          # 6 REST API, zone CRUD, PDF export/import, and demo tests
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
+│   │   ├── components/          # AirspaceMap, AdminZoneMap, Navbar, ValidationResultPanel, etc.
+│   │   ├── pages/               # Landing, Dashboard, FlightPlanner, AdminPanel, History, Zones, About
 │   │   ├── services/api.ts
 │   │   ├── types/index.ts
 │   │   ├── utils/geo.ts
@@ -129,7 +133,14 @@ Open `http://localhost:5173` in your browser. Vite proxies `/api/*` requests dir
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Service health and dataset metadata |
-| `GET` | `/api/zones` | Retrieve synthetic GeoJSON zones (`?level=RED\|YELLOW\|GREEN`) |
+| `GET` | `/api/zones` | Retrieve active GeoJSON zones (`?level=RED\|YELLOW\|GREEN`) |
+| `GET` | `/api/zones/pdf` | Download Admin Airspace Zones Briefing PDF (vector map + embedded GeoJSON + SHA-256) |
+| `POST` | `/api/zones/parse-pdf` | Parse and verify zones from an uploaded Airspace Briefing PDF |
+| `POST` | `/api/zones` | Create a new custom airspace zone polygon |
+| `PUT` | `/api/zones/:id` | Update a zone's geometry, color/level, or altitude rules |
+| `DELETE` | `/api/zones/:id` | Delete a single airspace zone |
+| `DELETE` | `/api/zones` | Clear all active airspace zones |
+| `POST` | `/api/zones/reset` | Restore default 9 synthetic demo zones |
 | `GET` | `/api/zones/:id` | Retrieve single zone details |
 | `GET` | `/api/demo/routes` | Retrieve predefined demo scenarios |
 | `POST` | `/api/flight-plans` | Create a flight plan record |
@@ -148,7 +159,7 @@ Open `http://localhost:5173` in your browser. Vite proxies `/api/*` requests dir
 
 ## Testing Commands
 
-Run the full automated backend test suite (17 tests across geospatial rules, edge cases, detour validity, API endpoints, and PDF generation):
+Run the full automated backend test suite (20 tests across geospatial rules, edge cases, detour validity, Admin zone CRUD, Airspace PDF export/import, and validation PDF reports):
 ```bash
 npm test
 ```

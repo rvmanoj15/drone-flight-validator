@@ -13,6 +13,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Edit3,
+  Download,
 } from 'lucide-react';
 import { AdminDrawTool, AdminZoneMap } from '../components/AdminZoneMap';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
@@ -248,13 +249,24 @@ export function AdminPanelPage() {
           </p>
         </div>
 
-        <Link
-          to="/planner"
-          className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-xs font-extrabold text-slate-950 shadow hover:bg-cyan-400 transition"
-        >
-          Test Zones in Flight Planner
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <a
+            href={api.getZonesPdfDownloadUrl()}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-4 py-2.5 text-xs font-bold text-cyan-200 hover:bg-cyan-500/25 transition"
+          >
+            <Download className="h-4 w-4" />
+            Download Airspace PDF ({zones.length})
+          </a>
+          <Link
+            to="/planner"
+            className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-xs font-extrabold text-slate-950 shadow hover:bg-cyan-400 transition"
+          >
+            Test Zones in Flight Planner
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
 
       <DisclaimerBanner compact />

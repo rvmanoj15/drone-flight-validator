@@ -2,6 +2,10 @@ import { Request, Response } from 'express';
 import { length, lineString } from '@turf/turf';
 import { v4 as uuidv4 } from 'uuid';
 import { generateRouteAlternatives } from '../algorithms/detourAlgorithm.js';
+import {
+  generateAirspaceBriefingPdfBuffer,
+  parseAirspaceZonesFromPdf,
+} from '../services/airspacePdfService.js';
 import { generateValidationPdfBuffer } from '../services/pdfService.js';
 import { IStorageRepository } from '../services/storageService.js';
 import { validateFlightRoute } from '../services/validationEngine.js';
@@ -19,6 +23,7 @@ import {
   flightPlanPayloadSchema,
   flightPlanUpdateSchema,
   normalizeClosedRing,
+  pdfUploadSchema,
   sanitizeText,
   validateZonePolygon,
   zonePayloadSchema,
@@ -285,6 +290,50 @@ export class ApiController {
     res.json({ features });
   };
 
+  downloadZonesPdf = async (_req: Request, res: Response) => {
+    const zones = this.repo.getZones();
+    const pdfBuffer = await generateAirspaceBriefingPdfBuffer(zones);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="TENORIX-Airspace-Zones.pdf"');
+    res.setHeader('Content-Length', String(pdfBuffer.length));
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.send(pdfBuffer);
+  };
+
+  parseZonesPdf = async (req: Request, res: Response) => {
+    const parsed = pdfUploadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Invalid PDF upload payload.',
+        details: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+      return;
+    }
+
+    const base64Clean = parsed.data.pdfBase64.replace(/^data:application\/pdf;base64,/, '');
+    const buffer = Buffer.from(base64Clean, 'base64');
+    if (buffer.length < 32 || buffer.subarray(0, 4).toString('utf-8') !== '%PDF') {
+      res.status(400).json({ error: 'Uploaded file is not a valid PDF document.' });
+      return;
+    }
+
+    try {
+      const result = await parseAirspaceZonesFromPdf(buffer);
+      res.json({
+        filename: sanitizeText(parsed.data.filename),
+        zoneCount: result.zones.length,
+        zones: result.zones,
+        checksumVerified: result.checksumVerified,
+        extractionMethod: result.extractionMethod,
+        warnings: result.warnings,
+      });
+    } catch (err) {
+      res.status(400).json({
+        error: err instanceof Error ? err.message : 'Unable to extract airspace zones from PDF.',
+      });
+    }
+  };
+
   getDemoRoutes = (_req: Request, res: Response) => {
     const routes = this.repo.getDemoRoutes();
     res.json({
@@ -415,7 +464,19 @@ export class ApiController {
     }
 
     const input = parsed.data;
-    const zones = this.repo.getZones();
+    let zones: AirspaceZoneFeature[] = this.repo.getZones();
+    let usingCustomZones = false;
+    if (Array.isArray(input.customZones) && input.customZones.length > 0) {
+      const validCustom = (input.customZones as AirspaceZoneFeature[]).filter(
+        (z) => validateZonePolygon(z).valid
+      );
+      if (validCustom.length === 0) {
+        res.status(400).json({ error: 'Uploaded airspace zones contain no valid polygons.' });
+        return;
+      }
+      zones = validCustom;
+      usingCustomZones = true;
+    }
     const now = new Date().toISOString();
 
     let flightPlanId = input.flightPlanId;
@@ -476,6 +537,9 @@ export class ApiController {
     }
 
     const validation = validateFlightRoute(input, zones, { flightPlanId });
+    if (usingCustomZones) {
+      validation.zonesSnapshot = zones;
+    }
     if (previousCoordinates && previousCoordinates.length >= 2) {
       validation.originalCoordinates = previousCoordinates;
     }
@@ -590,7 +654,9 @@ export class ApiController {
       return;
     }
 
-    const zones = this.repo.getZones();
+    const zones = record.zonesSnapshot && record.zonesSnapshot.length > 0
+      ? record.zonesSnapshot
+      : this.repo.getZones();
     let alternatives = record.alternativeRoutes ?? [];
     if (
       alternatives.length === 0 &&

@@ -48,6 +48,13 @@ export const flightPlanPayloadSchema = z.object({
   permissionGranted: z.boolean().optional().default(false),
   flightPlanId: z.string().trim().max(80).optional(),
   isDemoSeed: z.boolean().optional().default(false),
+  customZones: z.array(z.any()).max(200).optional(),
+  airspaceSource: z.string().trim().max(160).optional(),
+});
+
+export const pdfUploadSchema = z.object({
+  filename: z.string().trim().min(1).max(200).optional().default('airspace-briefing.pdf'),
+  pdfBase64: z.string().min(16, 'Uploaded PDF payload is empty or invalid.'),
 });
 
 export const flightPlanUpdateSchema = flightPlanPayloadSchema.partial();
