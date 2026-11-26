@@ -25,3 +25,21 @@ backend/data/db.json.tmp
 .DS_Store
 Thumbs.db
 .vscode/
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local database
+backend/data/db.json
+backend/data/db.json.tmp
+
+# Logs
+*.log
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# ZIP files
+*.zip
